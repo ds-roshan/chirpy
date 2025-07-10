@@ -1,11 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
+	"github.com/ds-roshan/chirpy/internal/auth"
+	"github.com/ds-roshan/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -16,9 +17,10 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
-func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	type response struct {
@@ -33,7 +35,21 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := cfg.db.CreateUser(context.Background(), params.Email)
+	if params.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "Password is required", nil)
+		return
+	}
+
+	hashPass, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't hash the password", err)
+		return
+	}
+
+	usr, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hashPass,
+	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create user", err)
 		return
@@ -47,5 +63,4 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			Email:     usr.Email,
 		},
 	})
-
 }
