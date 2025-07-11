@@ -38,7 +38,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 
 	userID, err := auth.ValidateJWT(token, cfg.secret)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't get id from token", err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't get id from token", err)
 		return
 	}
 

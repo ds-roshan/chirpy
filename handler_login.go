@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/ds-roshan/chirpy/internal/auth"
+	"github.com/ds-roshan/chirpy/internal/database"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameter struct {
-		Email            string `json:"email"`
-		Password         string `json:"password"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	type response struct {
@@ -41,15 +41,22 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiresIn := min(params.ExpiresInSeconds, 3600)
-	if expiresIn <= 0 {
-		expiresIn = 3600
-	}
-
-	jwt, err := auth.MakeJWT(user.ID, cfg.secret, time.Duration(expiresIn)*time.Second)
+	jwt, err := auth.MakeJWT(user.ID, cfg.secret, time.Hour)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create JWT", err)
 	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create referesh token", err)
+		return
+	}
+	refreshTokenExpiresOn := time.Now().UTC().AddDate(0, 0, 60)
+	cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		ExpiresAt: refreshTokenExpiresOn,
+		UserID:    user.ID,
+	})
 
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
@@ -58,6 +65,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
 		},
-		Token: jwt,
+		Token:        jwt,
+		RefreshToken: refreshToken,
 	})
 }
