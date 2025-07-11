@@ -3,14 +3,22 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/ds-roshan/chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameter struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
+	}
+
+	type response struct {
+		User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -33,8 +41,23 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, User{
-		ID:    user.ID,
-		Email: user.Email,
+	expiresIn := min(params.ExpiresInSeconds, 3600)
+	if expiresIn <= 0 {
+		expiresIn = 3600
+	}
+
+	jwt, err := auth.MakeJWT(user.ID, cfg.secret, time.Duration(expiresIn)*time.Second)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to create JWT", err)
+	}
+
+	respondWithJSON(w, http.StatusOK, response{
+		User: User{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
+		},
+		Token: jwt,
 	})
 }
