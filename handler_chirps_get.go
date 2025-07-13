@@ -37,7 +37,7 @@ func (cfg *apiConfig) handlerGetChirpByID(w http.ResponseWriter, r *http.Request
 
 	chirp, err := cfg.db.GetChirpsByID(r.Context(), uuidString)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to get user.", err)
+		respondWithError(w, http.StatusNotFound, "Failed to get user.", err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, Chirp{
