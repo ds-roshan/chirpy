@@ -5,10 +5,11 @@ INSERT INTO
     created_at,
     updated_at,
     email,
-    hashed_password
+    hashed_password,
+    is_chirpy_red
   )
 VALUES
-  (gen_random_uuid (), NOW(), NOW(), $1, $2) RETURNING *;
+  (gen_random_uuid (), NOW(), NOW(), $1, $2, false) RETURNING *;
 
 -- name: DeleteAllUsers :exec
 DELETE FROM users;
@@ -28,3 +29,10 @@ SET
   hashed_password = $2
 WHERE
   id = $3 RETURNING *;
+
+-- name: UpgradeUser :one
+UPDATE users
+SET
+  is_chirpy_red = true
+WHERE
+  id = $1 RETURNING *;
